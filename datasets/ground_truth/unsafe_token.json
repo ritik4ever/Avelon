@@ -1,0 +1,31 @@
+{
+  "contract_file": "unsafe_token.sol",
+  "contract_hash": "",
+  "description": "Ground truth for UnsafeToken — vulnerable ERC20-like token with 3 known issues.",
+  "vulnerabilities": [
+    {
+      "vuln_type": "front-running",
+      "function_name": "approve",
+      "line_number": 48,
+      "severity": "medium",
+      "confidence": 1.0,
+      "description": "The approve function directly sets allowance without increaseAllowance/decreaseAllowance pattern. Susceptible to front-running race condition."
+    },
+    {
+      "vuln_type": "timestamp-dependence",
+      "function_name": "claimReward",
+      "line_number": 64,
+      "severity": "low",
+      "confidence": 1.0,
+      "description": "Reward calculation relies on block.timestamp which can be manipulated by miners within a small window."
+    },
+    {
+      "vuln_type": "delegatecall",
+      "function_name": "execute",
+      "line_number": 72,
+      "severity": "critical",
+      "confidence": 1.0,
+      "description": "delegatecall to arbitrary target allows the called contract to overwrite storage, potentially taking ownership or draining funds."
+    }
+  ]
+}

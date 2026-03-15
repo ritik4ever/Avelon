@@ -1,0 +1,225 @@
+# ============================================
+# Avelon — Docker Compose
+# 6 core services + optional nginx profile
+# ============================================
+
+services:
+  # ── PostgreSQL ─────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-avelon_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-avelon_password}
+      POSTGRES_DB: ${POSTGRES_DB:-avelon_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../backend/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
+    # No host port binding by default to avoid local 5432 conflicts.
+    # Services reach Postgres via Docker network hostname: postgres:5432
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-avelon_user} -d ${POSTGRES_DB:-avelon_db}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - default
+      - internal
+
+  # ── Redis ──────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # No host port needed — only backend/worker access Redis via Docker network
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - default
+      - internal
+
+  # ── Backend API ────────────────────────────────────────────
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-avelon_user}:${POSTGRES_PASSWORD:-avelon_password}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-avelon_db}
+      - DATABASE_URL_SYNC=postgresql://${POSTGRES_USER:-avelon_user}:${POSTGRES_PASSWORD:-avelon_password}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-avelon_db}
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-change-me-jwt-secret}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - CUSTOM_OPENAI_BASE_URL=${CUSTOM_OPENAI_BASE_URL:-}
+      - ANALYZER_RUNNER_URL=http://analyzer-runner:8001
+      - UPLOAD_DIR=/app/uploads
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    command: >
+      sh -c "set -e;
+      eval \"$(python -m app.migrations.bootstrap)\";
+      python -m app.migrations.cli;
+      uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    volumes:
+      - uploads_data:/app/uploads
+      - ../datasets:/app/datasets:ro
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://127.0.0.1:8000/api/v1/live" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - default
+      - internal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # ── Celery Worker ──────────────────────────────────────────
+  worker:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: >
+      sh -c "set -e;
+      eval \"$(python -m app.migrations.bootstrap)\";
+      python -m app.migrations.cli;
+      celery -A app.worker.celery_app worker --loglevel=info --concurrency=4"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      analyzer-runner:
+        condition: service_started
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-avelon_user}:${POSTGRES_PASSWORD:-avelon_password}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-avelon_db}
+      - DATABASE_URL_SYNC=postgresql://${POSTGRES_USER:-avelon_user}:${POSTGRES_PASSWORD:-avelon_password}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-avelon_db}
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - CUSTOM_OPENAI_BASE_URL=${CUSTOM_OPENAI_BASE_URL:-}
+      - ANALYZER_RUNNER_URL=http://analyzer-runner:8001
+      - UPLOAD_DIR=/app/uploads
+    volumes:
+      - uploads_data:/app/uploads
+      - ../datasets:/app/datasets:ro
+    networks:
+      - default
+      - internal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # —— Dataset Generator Worker ————————————————————————————————
+  dataset-generator:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: >
+      sh -c "set -e;
+      eval \"$(python -m app.migrations.bootstrap)\";
+      python -m app.migrations.cli;
+      celery -A app.worker.celery_app worker --loglevel=info --concurrency=2 --queues=datasets"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-avelon_user}:${POSTGRES_PASSWORD:-avelon_password}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-avelon_db}
+      - DATABASE_URL_SYNC=postgresql://${POSTGRES_USER:-avelon_user}:${POSTGRES_PASSWORD:-avelon_password}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-avelon_db}
+      - REDIS_URL=redis://redis:6379/0
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - CUSTOM_OPENAI_BASE_URL=${CUSTOM_OPENAI_BASE_URL:-}
+      - ANALYZER_RUNNER_URL=http://analyzer-runner:8001
+      - UPLOAD_DIR=/app/uploads
+    volumes:
+      - uploads_data:/app/uploads
+      - ../datasets:/app/datasets:ro
+    networks:
+      - default
+      - internal
+
+  # ── Analyzer Runner (Sandboxed) ────────────────────────────
+  analyzer-runner:
+    build:
+      context: ../analyzer-runner
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=256M
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+          pids: 256
+    cpus: "2.0"
+    mem_limit: 2g
+    pids_limit: 256
+    networks:
+      - internal
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8001/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── Frontend ───────────────────────────────────────────────
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    ports:
+      - "3000:3000"
+
+  # ── Nginx Reverse Proxy ────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    profiles:
+      - proxy
+    depends_on:
+      - backend
+      - frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads_data:
+
+
+networks:
+  default:
+    driver: bridge
+  internal:
+    driver: bridge
+    internal: true # No outbound internet access for analyzer-runner

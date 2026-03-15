@@ -1,0 +1,39 @@
+{
+  "contract_file": "vulnerable_bank.sol",
+  "contract_hash": "",
+  "description": "Ground truth for VulnerableBank — deliberately vulnerable contract with 4 known issues.",
+  "vulnerabilities": [
+    {
+      "vuln_type": "reentrancy",
+      "function_name": "withdraw",
+      "line_number": 25,
+      "severity": "high",
+      "confidence": 1.0,
+      "description": "State variable balances[msg.sender] is modified after an external call to msg.sender. An attacker can reenter withdraw() before the balance is decremented."
+    },
+    {
+      "vuln_type": "unchecked-return",
+      "function_name": "unsafeTransfer",
+      "line_number": 34,
+      "severity": "medium",
+      "confidence": 1.0,
+      "description": "The return value of to.send(amount) is not checked. If the send fails, the function continues silently."
+    },
+    {
+      "vuln_type": "access-control",
+      "function_name": "destroyContract",
+      "line_number": 39,
+      "severity": "critical",
+      "confidence": 1.0,
+      "description": "selfdestruct can be called by any address. Missing access control check allows anyone to destroy the contract."
+    },
+    {
+      "vuln_type": "tx-origin",
+      "function_name": "transferOwnership",
+      "line_number": 44,
+      "severity": "high",
+      "confidence": 1.0,
+      "description": "Uses tx.origin for authentication instead of msg.sender. A phishing contract can exploit this to steal ownership."
+    }
+  ]
+}

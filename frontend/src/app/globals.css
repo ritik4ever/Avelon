@@ -1,0 +1,209 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,500;1,600&family=Manrope:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap");
+
+@layer base {
+  :root {
+    --bg-primary: #ece8df;
+    --bg-secondary: #f3efe7;
+    --bg-tertiary: #e4dfd4;
+    --bg-elevated: #f7f4ec;
+    --border-color: #c8c0b0;
+    --border-subtle: #dbd4c6;
+    --text-primary: #171716;
+    --text-secondary: #423f3a;
+    --text-tertiary: #7c7467;
+    --accent: #af2f22;
+    --accent-soft: #f6ddd6;
+    --danger: #b42318;
+    --warning: #b54708;
+    --info: #175cd3;
+  }
+
+  .dark {
+    --bg-primary: #131311;
+    --bg-secondary: #1b1a17;
+    --bg-tertiary: #23211c;
+    --bg-elevated: #171612;
+    --border-color: #343126;
+    --border-subtle: #29261e;
+    --text-primary: #f3efe6;
+    --text-secondary: #c2baaa;
+    --text-tertiary: #8d8578;
+    --accent: #e35b49;
+    --accent-soft: rgba(227, 91, 73, 0.14);
+    --danger: #f97066;
+    --warning: #f79009;
+    --info: #53b1fd;
+  }
+
+  body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: "Manrope", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: "Cormorant Garamond", Georgia, serif;
+    letter-spacing: -0.02em;
+  }
+}
+
+@layer components {
+  .card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+  }
+
+  .card-hover {
+    @apply card transition-all duration-300;
+  }
+
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.08);
+  }
+
+  .dark .card-hover:hover {
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.35);
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-full transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
+    background: var(--text-primary);
+    color: var(--bg-primary);
+  }
+
+  .btn-primary:hover {
+    opacity: 0.9;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-full transition-all duration-200 active:scale-[0.98];
+    background: transparent;
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+  }
+
+  .btn-secondary:hover {
+    background: var(--bg-tertiary);
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-full transition-all duration-200;
+    color: var(--text-secondary);
+  }
+
+  .btn-ghost:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+  }
+
+  .btn-accent {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-full transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .btn-accent:hover {
+    opacity: 0.92;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-3 text-sm rounded-2xl transition-all duration-200;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+  }
+
+  .input-field::placeholder {
+    color: var(--text-tertiary);
+  }
+
+  .input-field:focus {
+    outline: none;
+    border-color: var(--text-secondary);
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05);
+  }
+
+  .dark .input-field:focus {
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.06);
+  }
+
+  .label-text {
+    @apply block text-sm font-medium mb-2;
+    color: var(--text-secondary);
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full;
+  }
+
+  .badge-success {
+    @apply badge;
+    background: rgba(18, 183, 106, 0.12);
+    color: #067647;
+  }
+
+  .badge-warning {
+    @apply badge;
+    background: rgba(247, 144, 9, 0.14);
+    color: #93370d;
+  }
+
+  .badge-error {
+    @apply badge;
+    background: rgba(180, 35, 24, 0.14);
+    color: #b42318;
+  }
+
+  .badge-info {
+    @apply badge;
+    background: rgba(23, 92, 211, 0.14);
+    color: #175cd3;
+  }
+
+  .badge-neutral {
+    @apply badge;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+  }
+
+  .section-heading {
+    @apply text-4xl md:text-5xl leading-none font-semibold;
+    color: var(--text-primary);
+  }
+
+  .page-enter {
+    animation: fade-in-up 0.45s ease-out both;
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 999px;
+}

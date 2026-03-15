@@ -1,0 +1,6 @@
+{
+    "contract_file": "safe_vault.sol",
+    "contract_hash": "",
+    "description": "Ground truth for SafeVault — clean contract with NO known vulnerabilities. AI should report zero findings.",
+    "vulnerabilities": []
+}
